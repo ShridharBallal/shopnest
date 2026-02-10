@@ -1,0 +1,224 @@
+version: '3.8'
+
+# Networks
+networks:
+  shopnest-network:
+    driver: bridge
+    name: shopnest-network
+
+# Volumes for persistent data
+volumes:
+  postgres-data:
+  mongo-data:
+  redis-data:
+
+# All Services
+services:
+  # ==================== DATABASES ====================
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: shopnest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopnest-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-db:
+    image: mongo:6-jammy
+    container_name: shopnest-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./init-db/mongo-init.js:/docker-entrypoint-initdb.d/init.js
+    networks:
+      - shopnest-network
+    command: mongod --quiet --logpath /dev/null
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: shopnest-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - shopnest-network
+    command: redis-server --appendonly yes --requirepass ""
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== BACKEND SERVICES ====================
+  product-service:
+    build: ./product-service
+    container_name: shopnest-product-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PRODUCT_SERVICE_PORT}
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "${PRODUCT_SERVICE_PORT}:${PRODUCT_SERVICE_PORT}"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+    networks:
+      - shopnest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user-service:
+    build: ./user-service
+    container_name: shopnest-user-service
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT}
+      PORT: ${USER_SERVICE_PORT}
+      MONGO_URI: mongodb://${MONGO_HOST}:${MONGO_PORT}
+      MONGO_DB: ${MONGO_DB}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      SECRET_KEY: ${JWT_SECRET}
+      CORS_ORIGINS: ${PUBLIC_URL},http://localhost:3000
+    ports:
+      - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
+    depends_on:
+      mongo-db:
+        condition: service_started
+      redis-cache:
+        condition: service_started
+    networks:
+      - shopnest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cart-service:
+    build: ./cart-service
+    container_name: shopnest-cart-service
+    restart: unless-stopped
+    environment:
+      PORT: ${CART_SERVICE_PORT}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "${CART_SERVICE_PORT}:${CART_SERVICE_PORT}"
+    depends_on:
+      redis-cache:
+        condition: service_started
+    networks:
+      - shopnest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  notification-service:
+    build: ./notification-service
+    container_name: shopnest-notification-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${NOTIFICATION_SERVICE_PORT}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT}:${NOTIFICATION_SERVICE_PORT}"
+      - "4005:4005"  # WebSocket port
+    depends_on:
+      redis-cache:
+        condition: service_started
+    networks:
+      - shopnest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ==================== FRONTEND ====================
+  frontend:
+    build: ./frontend
+    container_name: shopnest-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${PUBLIC_URL}  # Frontend will use this
+      VITE_PRODUCT_SERVICE_URL: http://${PRODUCT_SERVICE_HOST}:${PRODUCT_SERVICE_PORT}
+      VITE_USER_SERVICE_URL: http://${USER_SERVICE_HOST}:${USER_SERVICE_PORT}
+      VITE_CART_SERVICE_URL: http://${CART_SERVICE_HOST}:${CART_SERVICE_PORT}
+      VITE_NOTIFICATION_SERVICE_URL: ws://${NOTIFICATION_SERVICE_HOST}:4005
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    depends_on:
+      - product-service
+      - user-service
+      - cart-service
+    networks:
+      - shopnest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==================== MONITORING (Optional) ====================
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: shopnest-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   networks:
+  #     - shopnest-network
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: shopnest-grafana
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #   networks:
+  #     - shopnest-network
