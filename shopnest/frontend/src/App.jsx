@@ -4,7 +4,7 @@ import { FaShoppingCart, FaUser, FaSearch, FaHome, FaTag, FaShoppingBag } from '
 import axios from 'axios'
 
 // API base URL from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://18.201.155.139:4001'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://18.201.155.139:4001' // in here also change the ip in your machine
 const PRODUCTS_API = `${API_BASE_URL}/api/products`
 
 function App() {
