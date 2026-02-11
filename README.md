@@ -8,6 +8,7 @@ copy this repo and do
 ### sudo systemctl start docker
 ### sudo systemctl status docker
 ### sudo usermod -aG docker $USER/ubuntu
+### newgrp docker
 ### git clone
 ### ./deploy.sh
 
