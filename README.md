@@ -10,7 +10,7 @@
 ### Deployment
 
 ```bash
-### apt update -y
+apt update -y
 ### apt install docker.io -y
 ### apt install docker-compose -y
 ### sudo systemctl enable docker
