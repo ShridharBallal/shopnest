@@ -1,7 +1,13 @@
-in thow file have to chaneg ip 1.env 2 frontend/src/App.jsx
-copy this repo and do 
-#
-### apt updat -y 
+Deployment Instructions
+
+⚠️ Before deploying, make sure to update the IP address in the following files:
+
+.env
+
+frontend/src/App.jsx
+
+Initial Setup
+### apt update -y
 ### apt install docker.io -y
 ### apt install docker-compose -y
 ### sudo systemctl enable docker
@@ -9,11 +15,13 @@ copy this repo and do
 ### sudo systemctl status docker
 ### sudo usermod -aG docker $USER/ubuntu
 ### newgrp docker
-### git clone
+### git clone <repo-url>
 ### ./deploy.sh
 
+Redeploy / Update Application
 
-# only when u deploy this fist then used for second time or mutiple tim eu try to deply this apption that time ,like u chnage something u agin what to to deplyt this appliction befor eploy thts apption do this complesery
+Only use the following steps when you deploy for the second time, or if you make changes to the application.
+
 ### docker-compose down -v
 ### docker system prune -af
 ### ./deploy.sh
