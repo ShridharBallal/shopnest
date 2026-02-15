@@ -1,12 +1,15 @@
-Deployment Instructions
+# Deployment Instructions
 
 ⚠️ Before deploying, make sure to update the IP address in the following files:
 
-.env
+1. `.env`  
+2. `frontend/src/App.jsx`
 
-frontend/src/App.jsx
+---
 
-Initial Setup
+### Deployment
+
+```bash
 ### apt update -y
 ### apt install docker.io -y
 ### apt install docker-compose -y
@@ -18,10 +21,7 @@ Initial Setup
 ### git clone <repo-url>
 ### ./deploy.sh
 
-Redeploy / Update Application
-
-Only use the following steps when you deploy for the second time, or if you make changes to the application.
-
+### If you are redeploying or after making changes to the application:
 ### docker-compose down -v
 ### docker system prune -af
 ### ./deploy.sh
