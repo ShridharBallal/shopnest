@@ -1,6 +1,6 @@
 # Deployment Instructions
 
-⚠️ Before deploying, make sure to update the IP address in the following files:
+⚠️ Before deploying, make sure to update the "MY_IP" to "Your_IP" address in the following files:
 
 1. `.env`  
 2. `frontend/src/App.jsx`
