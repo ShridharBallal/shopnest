@@ -20,8 +20,13 @@ sudo usermod -aG docker $USER/ubuntu
 newgrp docker
 git clone <repo-url>
 ./deploy.sh
+```
+# Use this only when deploying the application for the first time.
 
-### If you are redeploying or after making changes to the application:
+### Only use these steps if you make changes to the application or want to redeploy.:
+```bash
 docker-compose down -v
 docker system prune -af
 ./deploy.sh
+```
+# This ensures all old containers, volumes, and unused Docker resources are cleaned before redeploying.
