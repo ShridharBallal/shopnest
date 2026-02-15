@@ -1,5 +1,7 @@
 # Deployment Instructions
 
+<img width="1917" height="1031" alt="Screenshot 2026-02-15 202616" src="https://github.com/user-attachments/assets/b6e878a6-b102-4f1f-830a-e330d87f32fd" />
+
 ⚠️ Before deploying, make sure to update the "MY_IP" to "Your_IP" address in the following files:
 
 1. `.env`  
